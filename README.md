@@ -15,6 +15,12 @@ GET /v1/users
 GET /v1/users/{username}
 -- Get registered user information
 
+GET /v1/users/{username}/notifications
+-- Get the number of sent notifications
+
+POST /v1/users/{username}/notifications
+-- Send a notification
+
 Requirements
 ====
 Python3 and pip

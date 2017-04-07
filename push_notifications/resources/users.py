@@ -7,6 +7,20 @@ from push_notifications.utils.json import json_dump
 from push_notifications.utils.falcon import decode_json_request
 from push_notifications.storage import UserNotFoundException, \
     DuplicateUserException
+from push_notifications.pushbullet_api import InvalidAccessTokenException, \
+    PushbulletException
+
+
+def get_user(storage, username, logger=None):
+    """Get a user from the given storage.
+       This will raise a HTTPNotFound exception if the user is not found.
+       """
+    try:
+        return storage.get_by_username(username)
+    except UserNotFoundException:
+        if logger:
+            logger.error("User %s not found" % username)
+        raise falcon.HTTPNotFound()
 
 
 class UsersResource:
@@ -46,18 +60,49 @@ class UserResource:
         self._storage = storage
         self._logger = logging.getLogger('notifications_api.user')
 
-    def _get_user(self, username):
-        """Get a user from the given storage.
-           This will raise a HTTPNotFound exception if the user is not found.
-           """
-        try:
-            return self._storage.get_by_username(username)
-        except UserNotFoundException:
-            self._logger.error("User %s not found" % username)
-            raise falcon.HTTPNotFound()
-
     def on_get(self, req, resp, username):
         """Handles GET requests"""
         self._logger.info("Getting user info about %s" % username)
-        user = self._get_user(username)
+        user = get_user(self._storage, username, self._logger)
         resp.body = json_dump(user)
+
+
+class UserNotificationsResource:
+    def __init__(self, storage, pushbullet_api):
+        self._storage = storage
+        self._pushbullet_api = pushbullet_api
+        self._logger = logging.getLogger(
+            'notifications_api.user_notifications')
+
+    def on_get(self, req, resp, username):
+        """Return the number of notifications sent."""
+        self._logger.info("Listing notification count for %s" % username)
+        user = get_user(self._storage, username, self._logger)
+        resp.body = json_dump({"numOfNotificationsPushed":
+                               user["numOfNotificationsPushed"]})
+
+    def on_post(self, req, resp, username):
+        """Post a new notification."""
+        self._logger.info("Posting new notification to %s" % username)
+        user = get_user(self._storage, username, self._logger)
+        access_token = user["accessToken"]
+
+        data = decode_json_request(req, ["title", "body"])
+        try:
+            self._pushbullet_api.create_push(access_token,
+                                             data["title"], data["body"])
+        except InvalidAccessTokenException:
+            self._logger.error(
+                "Invalid pushbullet access token %s" % access_token)
+            raise falcon.HTTPForbidden("Incorrect access token")
+        except PushbulletException as e:
+            self._logger.error(
+                "Pushbullet error %s" % str(e))
+            raise falcon.HTTPInternalServerError
+        num_notifications = self._storage.increment_notifications_pushed(
+            username)
+
+        self._logger.info("Notification pushed to %s" % username)
+        resp.status = falcon.HTTP_201
+        resp.body = json_dump({"numOfNotificationsPushed":
+                               num_notifications})

@@ -5,12 +5,16 @@ from push_notifications import server
 import dateutil.parser
 from datetime import datetime, timedelta
 from push_notifications.storage.in_memory_storage import InMemoryStorage
+from push_notifications.pushbullet_api import InvalidAccessTokenException, \
+    PushbulletException
+from unittest.mock import MagicMock
 
 
 class TestUsers(testing.TestCase):
     def setUp(self):
         self._storage = InMemoryStorage()
-        self.app = server.setup_api(self._storage)
+        self._pushbullet = MagicMock()
+        self.app = server.setup_api(self._storage, self._pushbullet)
 
     def test_register_user(self):
         """Test registering a new user."""
@@ -103,3 +107,73 @@ class TestUsers(testing.TestCase):
                         result.json[1]["username"] == "user1")
         self.assertTrue(result.json[0]["username"] == "user2" or
                         result.json[1]["username"] == "user2")
+
+    def test_list_notification_count(self):
+        """Get notification counts."""
+        self._storage.register("user1", "token1")
+        result = self.simulate_get("/v1/users/user1/notifications")
+        self.assertEqual(result.json["numOfNotificationsPushed"], 0)
+
+        self._storage.increment_notifications_pushed("user1")
+        result = self.simulate_get("/v1/users/user1/notifications")
+        self.assertEqual(result.json["numOfNotificationsPushed"], 1)
+
+        self._storage.increment_notifications_pushed("user1")
+        result = self.simulate_get("/v1/users/user1/notifications")
+        self.assertEqual(result.json["numOfNotificationsPushed"], 2)
+
+    def test_notify(self):
+        """Push a notification."""
+        self._storage.register("user1", "token1")
+        result = self.simulate_post(
+            "/v1/users/user1/notifications", body=json.dumps({
+                "title": "test_title", "body": "test_body"
+            })
+        )
+        self.assertEqual(result.status, falcon.HTTP_201)
+        self._pushbullet.create_push.assert_called_with(
+            "token1", "test_title", "test_body")
+        user = self._storage.get_by_username("user1")
+        self.assertEqual(user["numOfNotificationsPushed"], 1)
+
+    def test_notify_invalid_user(self):
+        """Push a notification to an unregistered user."""
+        result = self.simulate_post(
+            "/v1/users/user1/notifications", body=json.dumps({
+                "title": "test_title", "body": "test_body"
+            })
+        )
+        self.assertEqual(result.status, falcon.HTTP_404)
+
+    def test_notify_invalid_token(self):
+        """Push a notification with an invalid token."""
+
+        def raise_token_exception(a, b, c):
+            raise InvalidAccessTokenException("Invalid token")
+
+        self._storage.register("user1", "token1")
+        self._pushbullet.create_push.side_effect = raise_token_exception
+        result = self.simulate_post(
+            "/v1/users/user1/notifications", body=json.dumps({
+                "title": "test_title", "body": "test_body"
+            })
+        )
+        self.assertEqual(result.status, falcon.HTTP_403)
+        user = self._storage.get_by_username("user1")
+        self.assertEqual(user["numOfNotificationsPushed"], 0)
+
+    def test_notify_pushbullet_error(self):
+        """Push a notification with an unknown pushbullet error."""
+        def raise_pushbullet_exception(a, b, c):
+            raise PushbulletException("Another exception")
+
+        self._storage.register("user1", "token1")
+        self._pushbullet.create_push.side_effect = raise_pushbullet_exception
+        result = self.simulate_post(
+            "/v1/users/user1/notifications", body=json.dumps({
+                "title": "test_title", "body": "test_body"
+            })
+        )
+        self.assertEqual(result.status, falcon.HTTP_500)
+        user = self._storage.get_by_username("user1")
+        self.assertEqual(user["numOfNotificationsPushed"], 0)
