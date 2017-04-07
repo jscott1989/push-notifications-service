@@ -21,6 +21,28 @@ GET /v1/users/{username}/notifications
 POST /v1/users/{username}/notifications
 -- Send a notification
 
+Assumptions
+====
+From the instructions it appears you want the notification to be sent to all devices associated
+with a given access token. This is what I have implemented.
+
+I have also only implemented the functionality requested in the document. The API supports
+user registration, listing all users, user lookup, and sending notifications. I haven't
+implemented support for modifying users once they are registered. I also have not implemented
+pagination on the list of users. This may be required depending on the expected use of the API.
+
+
+Design Decisions
+====
+The data is stored in a dictionary abstracted away behind an InMemoryStorage class. This is injected
+into the server, so if this was needed to run on multiple servers it could be replaced with
+a database-backed implementation.
+
+Due to the GIL the dictionary as a whole is thread-safe, though I had to use a lock to ensure the register and increment functionality would be safe.
+
+I put everything under /v1 as some form of versioning APIs is good practice and this was the simplest
+to implement for this task.
+
 Requirements
 ====
 Python3 and pip
