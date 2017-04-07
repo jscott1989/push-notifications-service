@@ -17,7 +17,7 @@ def setup_api(storage=None, pushbullet=None):
     if not pushbullet:
         pushbullet = PushbulletAPI(
             os.environ.get("PUSHBULLET_API_URL",
-                           "https://api.pushbullet.com/v2/"))
+                           "https://api.pushbullet.com/v2"))
 
     api.add_route('/v1/users', UsersResource(storage))
     api.add_route('/v1/users/{username}', UserResource(storage))
