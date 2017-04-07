@@ -13,7 +13,7 @@ class InMemoryStorage:
 
     def register(self, username, access_token):
         """Register a new user.
-        If the user already exists this will raise DuplicatUserException."""
+        If the user already exists this will raise DuplicateUserException."""
         if username in self._users:
             raise DuplicateUserException(
                 "%s already registered" % username)
@@ -38,7 +38,7 @@ class InMemoryStorage:
 
     def increment_notifications_pushed(self, username):
         """Increment numOfNotificationsPushed for the given user.
-        If the user does not exist this will raise UserNotFoundExeption."""
+        If the user does not exist this will raise UserNotFoundException."""
         user = self.get_by_username(username)
         user["numOfNotificationsPushed"] += 1
         self._users[username] = user
