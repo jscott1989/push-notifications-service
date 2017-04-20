@@ -6,8 +6,7 @@ from push_notifications.utils.falcon import decode_json_request
 from push_notifications.utils.json import json_dump
 from push_notifications.storage import DuplicateGroupException, \
     UserNotFoundException, GroupNotFoundException
-from push_notifications.pushbullet_api import InvalidAccessTokenException, \
-    PushbulletException
+from push_notifications.utils.notifications import send_notification_to_user
 
 
 def get_group(storage, group_id, logger):
@@ -17,28 +16,6 @@ def get_group(storage, group_id, logger):
         logger.info("Group not found")
         raise falcon.HTTPNotFound()
     return user_ids
-
-
-def send_notification_to_user(pushbullet_api, storage, logger,
-                              user, title, body):
-    """Send a notification to a user.
-    Returns if True, None if there is no error.
-    otherwise False, followed by the error."""
-    try:
-        access_token = storage.get_by_username(user)
-        pushbullet_api.create_push(access_token, title, body)
-        storage.increment_notifications_pushed(user)
-        logger.info("Notification pushed to %s" % user)
-        return True, None
-    except UserNotFoundException:
-        logger.error("User not found %s" % user)
-        return False, "%s: User not found" % user
-    except InvalidAccessTokenException:
-        logger.error("Invalid pushbullet access token %s" % access_token)
-        return False, "%s: Incorrect access token" % user
-    except PushbulletException as e:
-        logger.error("Pushbullet error %s" % str(e))
-        return False, "%s: Pushbullet error" % user
 
 
 class GroupsResource:
@@ -91,7 +68,7 @@ class GroupNotificationsResource:
 
     def __init__(self, storage, pushbullet_api):
         self._storage = storage
-        self.pushbullet_api = pushbullet_api
+        self._pushbullet_api = pushbullet_api
         self._logger = logging.getLogger('notifications_api.groups')
 
     def on_post(self, req, resp, group_id):
