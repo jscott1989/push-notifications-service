@@ -4,3 +4,11 @@ class UserNotFoundException(Exception):
 
 class DuplicateUserException(Exception):
     pass
+
+
+class GroupNotFoundException(Exception):
+    pass
+
+
+class DuplicateGroupException(Exception):
+    pass

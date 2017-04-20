@@ -6,6 +6,9 @@ from .storage.in_memory_storage import InMemoryStorage
 from .pushbullet_api import PushbulletAPI
 from .resources.users import UsersResource, UserResource, \
     UserNotificationsResource
+from .resources.groups import GroupsResource, GroupResource, \
+    GroupNotificationsResource
+from .resources.notifications import NotificationsResource
 
 
 def setup_api(storage=None, pushbullet=None):
@@ -23,6 +26,13 @@ def setup_api(storage=None, pushbullet=None):
     api.add_route('/v1/users/{username}', UserResource(storage))
     api.add_route('/v1/users/{username}/notifications',
                   UserNotificationsResource(storage, pushbullet))
+    api.add_route('/v1/groups', GroupsResource(storage))
+    api.add_route('/v1/groups/{group_id}', GroupResource(storage))
+    api.add_route('/v1/groups/{group_id}/notifications',
+                  GroupNotificationsResource(storage, pushbullet))
+
+    api.add_route('/v1/notifications',
+                  NotificationsResource(storage, pushbullet))
 
     return api
 

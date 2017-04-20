@@ -72,7 +72,7 @@ class TestUsers(testing.TestCase):
     def test_get_user(self):
         """Get a user."""
         creation_time = datetime.now()
-        self._storage.register("testuser", "testtoken")
+        self._storage.register_user("testuser", "testtoken")
         result = self.simulate_get('/v1/users/testuser')
         self.assertEqual(result.status, falcon.HTTP_200)
         resource = result.json
@@ -94,13 +94,13 @@ class TestUsers(testing.TestCase):
         result = self.simulate_get('/v1/users')
         self.assertEqual(result.json, [])
 
-        self._storage.register("user1", "token1")
+        self._storage.register_user("user1", "token1")
         result = self.simulate_get('/v1/users')
         self.assertEqual(len(result.json), 1)
         self.assertEqual(result.json[0]["accessToken"], "token1")
         self.assertEqual(result.json[0]["username"], "user1")
 
-        self._storage.register("user2", "token2")
+        self._storage.register_user("user2", "token2")
         result = self.simulate_get('/v1/users')
         self.assertEqual(len(result.json), 2)
         self.assertTrue(result.json[0]["username"] == "user1" or
@@ -110,7 +110,7 @@ class TestUsers(testing.TestCase):
 
     def test_list_notification_count(self):
         """Get notification counts."""
-        self._storage.register("user1", "token1")
+        self._storage.register_user("user1", "token1")
         result = self.simulate_get("/v1/users/user1/notifications")
         self.assertEqual(result.json["numOfNotificationsPushed"], 0)
 
@@ -124,7 +124,7 @@ class TestUsers(testing.TestCase):
 
     def test_notify(self):
         """Push a notification."""
-        self._storage.register("user1", "token1")
+        self._storage.register_user("user1", "token1")
         result = self.simulate_post(
             "/v1/users/user1/notifications", body=json.dumps({
                 "title": "test_title", "body": "test_body"
@@ -151,7 +151,7 @@ class TestUsers(testing.TestCase):
         def raise_token_exception(a, b, c):
             raise InvalidAccessTokenException("Invalid token")
 
-        self._storage.register("user1", "token1")
+        self._storage.register_user("user1", "token1")
         self._pushbullet.create_push.side_effect = raise_token_exception
         result = self.simulate_post(
             "/v1/users/user1/notifications", body=json.dumps({
@@ -167,7 +167,7 @@ class TestUsers(testing.TestCase):
         def raise_pushbullet_exception(a, b, c):
             raise PushbulletException("Another exception")
 
-        self._storage.register("user1", "token1")
+        self._storage.register_user("user1", "token1")
         self._pushbullet.create_push.side_effect = raise_pushbullet_exception
         result = self.simulate_post(
             "/v1/users/user1/notifications", body=json.dumps({

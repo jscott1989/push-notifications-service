@@ -36,8 +36,8 @@ class UsersResource:
         data = decode_json_request(req, ["username", "accessToken"])
         self._logger.info("Registration request for %s" % data["username"])
         try:
-            user = self._storage.register(data["username"],
-                                          data["accessToken"])
+            user = self._storage.register_user(data["username"],
+                                               data["accessToken"])
         except DuplicateUserException:
             self._logger.info(
                 "Refused duplicate registration for %s" % data["username"])

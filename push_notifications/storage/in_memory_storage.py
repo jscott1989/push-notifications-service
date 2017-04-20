@@ -2,16 +2,18 @@
 import datetime
 import threading
 from push_notifications.storage import UserNotFoundException, \
-    DuplicateUserException
+    DuplicateUserException, GroupNotFoundException, \
+    DuplicateGroupException
 
 
 class InMemoryStorage:
     """Stores users only in memory with no persistence."""
     def __init__(self):
         self._users = {}
+        self._groups = {}
         self._lock = threading.Lock()
 
-    def register(self, username, access_token):
+    def register_user(self, username, access_token):
         """Register a new user.
         If the user already exists this will raise DuplicateUserException."""
         with self._lock:
@@ -36,6 +38,26 @@ class InMemoryStorage:
         if username in self._users:
             return self._users[username]
         raise UserNotFoundException("%s does not exist" % username)
+
+    def register_group(self, group_id, user_ids):
+        """Register a group of users."""
+        if group_id in self._groups:
+            raise DuplicateGroupException(
+                "%s is already registered" % group_id)
+        for user_id in user_ids:
+            if user_id not in self._users:
+                raise UserNotFoundException("%s not found" % user_id)
+        self._groups[group_id] = user_ids
+
+    def get_group(self, group_id):
+        """Get a group by group id."""
+        if group_id in self._groups:
+            return self._groups[group_id]
+        raise GroupNotFoundException("%s does not exist" % group_id)
+
+    def get_groups(self):
+        """Return all groups."""
+        return list(self._groups.values())
 
     def increment_notifications_pushed(self, username):
         """Increment numOfNotificationsPushed for the given user.
